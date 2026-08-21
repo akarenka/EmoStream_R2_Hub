@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function managerPath() {
+      return /databases/$(database)/documents/artifacts/hayashi-rika-player/public/data/managers/$(request.auth.token.email);
+    }
+
+    function isManager() {
+      return signedIn() && request.auth.token.email != null &&
+        (request.auth.token.email == 'hayashirika05@gmail.com' || exists(managerPath()));
+    }
+
+    function isPrimaryManager() {
+      return signedIn() && request.auth.token.email == 'hayashirika05@gmail.com';
+    }
+
+    match /artifacts/hayashi-rika-player/public/data/songs/{songId} {
+      allow read: if true;
+      allow create, update, delete: if isManager();
+    }
+
+    match /artifacts/hayashi-rika-player/public/data/managers/{email} {
+      allow read: if true;
+      allow create, update, delete: if isPrimaryManager();
+    }
+
+    match /artifacts/hayashi-rika-player/users/{userId}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+  }
+}
