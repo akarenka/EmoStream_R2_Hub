@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isManager() {
+      return signedIn() && (
+        request.auth.token.email == 'hayashirika05@gmail.com' ||
+        firestore.exists(/databases/(default)/documents/artifacts/hayashi-rika-player/public/data/managers/$(request.auth.token.email))
+      );
+    }
+
+    match /manager-media/{userId}/{fileName} {
+      allow read: if isManager();
+      allow create, update: if isManager() && request.auth.uid == userId
+        && request.resource.size < 500 * 1024 * 1024
+        && (request.resource.contentType.matches('audio/.*') || request.resource.contentType.matches('video/.*'));
+      allow delete: if isManager();
+    }
+
+    match /manager-avatars/{userId}/{fileName} {
+      allow read: if isManager();
+      allow create, update: if isManager() && request.auth.uid == userId
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isManager() && request.auth.uid == userId;
+    }
+  }
+}
