@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>EmoStream R2 Hub v2.1</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                            accent: '#3b82f6',
+                            purple: '#a855f7'
+                        },
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glow-effect {
+            box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.3);
+        }
+
+        .visualizer-bar {
+            transition: height 0.15s ease;
+        }
+    </style>
+</head>
+<body class="bg-[#090d16] text-slate-100 min-h-screen selection:bg-brand-500 selection:text-black">
+    <div id="root"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            collection, 
+            onSnapshot, 
+            addDoc 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDSVT1my-e0x-WKLKAiPq1WPz_q4PvMVOE",
+            authDomain: "emostreamwebsite.firebaseapp.com",
+            projectId: "emostreamwebsite",
+            storageBucket: "emostreamwebsite.firebasestorage.app",
+            messagingSenderId: "816296282273",
+            appId: "1:816296282273:web:f52a93862a5b681cb988e0"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            window.FB = {
+                auth: getAuth(app),
+                db: getFirestore(app),
+                signInAnonymously,
+                signInWithEmailAndPassword,
+                signOut,
+                onAuthStateChanged,
+                doc, getDoc, setDoc, collection, onSnapshot, addDoc
+            };
+        } catch (err) {
+            console.warn("Firebase Init Warning:", err);
+        }
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // Native SVG Icon Component
+        function Icon({ name, className = "w-5 h-5", fill = "none" }) {
+            const icons = {
+                'waves': <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.6 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.6 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.6 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />,
+                'disc': <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></>,
+                'search': <><circle cx="11" r="8" cy="11"/><path d="m21 21-4.3-4.3"/></>,
+                'heart': <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>,
+                'list-music': <><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></>,
+                'upload-cloud': <><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></>,
+                'pause': <><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></>,
+                'play': <polygon points="6 3 20 12 6 21 6 3"/>,
+                'skip-back': <><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/></>,
+                'skip-forward': <><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></>,
+                'volume-x': <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></>,
+                'volume-2': <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></>,
+                'repeat': <><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></>,
+                'shuffle': <><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.5-.6-3.3-1.7l-.5-.8"/><path d="m18 14 4 4-4 4"/></>,
+                'video': <><polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/></>
+            };
+
+            return (
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    viewBox="0 0 24 24" 
+                    fill={fill} 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    className={className}
+                >
+                    {icons[name] || null}
+                </svg>
+            );
+        }
+
+        const DEFAULT_ADS = [
+            {
+                id: "ad-1",
+                linkUrl: "https://l-tike.com/concert/mevent/?mid=599279",
+                videoUrl: "https://f005.backblazeb2.com/file/streampulse-videos-2026-1821/-P1llza1yvcI3jM3.mp4",
+                title: "「TOMOHISA YAMASHITA TOUR 2026 DREAMING」",
+                description: "【先行受付】https://l-tike.com/concert/mevent/?mid=599279"
+            },
+            {
+                id: "ad-2",
+                linkUrl: "https://thetv.jp/news/detail/1437406/",
+                videoUrl: "https://pub-12e20a040fa54e329557e0a93196cb52.r2.dev/C9.mp4",
+                title: "MissDior",
+                description: "https://thetv.jp/news/detail/1437406/"
+            }
+        ];
+
+        // 蓋台廣告元件 (8 秒鎖定後可略過)
+        function OverlayAd({ adsList = [] }) {
+            const effectiveAds = adsList.length > 0 ? adsList : DEFAULT_ADS;
+
+            const [currentAd] = useState(() => {
+                const lastIndex = parseInt(localStorage.getItem('emostream_last_ad_index') || '-1', 10);
+                const nextIndex = (lastIndex + 1) % effectiveAds.length;
+                localStorage.setItem('emostream_last_ad_index', nextIndex.toString());
+                return effectiveAds[nextIndex];
+            });
+
+            const TOTAL_COUNTDOWN = 8;
+            const [visible, setVisible] = useState(false);
+            const [countdown, setCountdown] = useState(TOTAL_COUNTDOWN);
+            const videoRef = useRef(null);
+
+            useEffect(() => {
+                const timer = setTimeout(() => setVisible(true), 800);
+                return () => clearTimeout(timer);
+            }, []);
+
+            useEffect(() => {
+                if (!visible) return;
+
+                if (videoRef.current) {
+                    videoRef.current.muted = true;
+                    videoRef.current.play().catch(err => console.log("Ad autoplay handled:", err));
+                }
+
+                setCountdown(TOTAL_COUNTDOWN);
+                const interval = setInterval(() => {
+                    setCountdown((prev) => {
+                        if (prev <= 1) {
+                            clearInterval(interval);
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+
+                return () => clearInterval(interval);
+            }, [visible]);
+
+            const handleClose = (e) => {
+                if (e) e.stopPropagation();
+                if (countdown > 0) return;
+                if (videoRef.current) videoRef.current.pause();
+                setVisible(false);
+            };
+
+            if (!visible || !currentAd) return null;
+
+            return (
+                <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="relative max-w-xl w-full bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden shadow-2xl">
+                        {countdown > 0 ? (
+                            <div className="absolute top-3 right-3 z-20 px-3.5 py-1.5 rounded-full bg-black/75 text-slate-300 text-xs font-mono font-bold flex items-center space-x-1.5 backdrop-blur-md border border-white/10 select-none">
+                                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                <span>廣告 ({countdown}s 後可略過)</span>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleClose}
+                                className="absolute top-3 right-3 z-20 px-4 py-1.5 rounded-full bg-brand-500 hover:bg-brand-400 text-slate-950 text-xs font-extrabold flex items-center space-x-1.5 shadow-lg transition transform hover:scale-105"
+                                title="略過廣告"
+                            >
+                                <span>略過廣告 Skip</span>
+                                <span className="text-sm font-black">&times;</span>
+                            </button>
+                        )}
+
+                        <a 
+                            href={currentAd.linkUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={handleClose}
+                            className="block group relative"
+                        >
+                            <div className="relative aspect-video bg-black overflow-hidden">
+                                <video 
+                                    ref={videoRef}
+                                    src={currentAd.videoUrl}
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    controlsList="nodownload"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                                />
+                                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent p-5 z-10">
+                                    <span className="text-[10px] uppercase font-bold tracking-widest text-brand-400 bg-brand-500/20 px-2 py-0.5 rounded-full border border-brand-500/30">
+                                        Sponsor Video
+                                    </span>
+                                    <h4 className="text-lg font-bold text-white mt-1 group-hover:text-brand-400 transition">
+                                        {currentAd.title}
+                                    </h4>
+                                    <p className="text-xs text-slate-300 mt-0.5">{currentAd.description}</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            );
+        }
+
+        // IndexedDB 資料庫管理
+        const mediaDb = {
+            open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('EmoStreamMediaDB', 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('media')) {
+                            db.createObjectStore('media', { keyPath: 'id' });
+                        }
+                    };
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            async getAll() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve) => {
+                        const tx = db.transaction('media', 'readonly');
+                        const store = tx.objectStore('media');
+                        const req = store.getAll();
+                        req.onsuccess = () => resolve(req.result || []);
+                        req.onerror = () => resolve([]);
+                    });
+                } catch {
+                    return [];
+                }
+            },
+            async put(item) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve) => {
+                        const tx = db.transaction('media', 'readwrite');
+                        const store = tx.objectStore('media');
+                        store.put(item);
+                        tx.oncomplete = () => resolve(true);
+                        tx.onerror = () => resolve(false);
+                    });
+                } catch {
+                    return false;
+                }
+            }
+        };
+
+        const INITIAL_MEDIA = [
+            {
+                id: 1,
+                title: "FullStack 實戰：從 0 到 1 打造 AI App",
+                creator: "Alex Tech 課堂",
+                type: "video",
+                src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                thumb: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80"
+            },
+            {
+                id: 2,
+                title: "EP.88 矽谷 SaaS 創業者的商業心法",
+                creator: "創投深度對談 Podcast",
+                type: "audio",
+                src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                thumb: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600&auto=format&fit=crop&q=80"
+            },
+            {
+                id: 3,
+                title: "城市光影：4K 微電影《最後的串流》",
+                creator: "影人聯合工作室",
+                type: "video",
+                src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                thumb: "https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=600&auto=format&fit=crop&q=80"
+            }
+        ];
+
+        // 主應用程式 App
+        function App() {
+            const [tracks, setTracks] = useState(INITIAL_MEDIA);
+            const [currentTrack, setCurrentTrack] = useState(INITIAL_MEDIA[0]);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [searchTerm, setSearchTerm] = useState("");
+            const [filterType, setFilterType] = useState("all");
+            const [favorites, setFavorites] = useState([]);
+            const [progress, setProgress] = useState(0);
+            const [volume, setVolume] = useState(0.8);
+            const [isMuted, setIsMuted] = useState(false);
+
+            const mediaRef = useRef(null);
+
+            useEffect(() => {
+                mediaDb.getAll().then((data) => {
+                    if (data && data.length > 0) {
+                        setTracks(data);
+                        setCurrentTrack(data[0]);
+                    }
+                });
+            }, []);
+
+            useEffect(() => {
+                if (mediaRef.current) {
+                    mediaRef.current.volume = isMuted ? 0 : volume;
+                }
+            }, [volume, isMuted]);
+
+            const handlePlayPause = () => {
+                if (!mediaRef.current) return;
+                if (isPlaying) {
+                    mediaRef.current.pause();
+                    setIsPlaying(false);
+                } else {
+                    mediaRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+                }
+            };
+
+            const handleSelectTrack = (track) => {
+                setCurrentTrack(track);
+                setIsPlaying(true);
+                setTimeout(() => {
+                    if (mediaRef.current) {
+                        mediaRef.current.currentTime = 0;
+                        mediaRef.current.play().catch(console.error);
+                    }
+                }, 100);
+            };
+
+            const toggleFavorite = (id) => {
+                setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+            };
+
+            const handleTimeUpdate = () => {
+                if (mediaRef.current && mediaRef.current.duration) {
+                    setProgress((mediaRef.current.currentTime / mediaRef.current.duration) * 100);
+                }
+            };
+
+            const handleSeek = (e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                if (mediaRef.current && mediaRef.current.duration) {
+                    mediaRef.current.currentTime = pos * mediaRef.current.duration;
+                }
+            };
+
+            const filteredTracks = useMemo(() => {
+                return tracks.filter(t => {
+                    const matchType = filterType === 'all' || t.type === filterType;
+                    const matchSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                        t.creator.toLowerCase().includes(searchTerm.toLowerCase());
+                    return matchType && matchSearch;
+                });
+            }, [tracks, filterType, searchTerm]);
+
+            return (
+                <div className="min-h-screen flex flex-col justify-between pb-28">
+                    <OverlayAd adsList={DEFAULT_ADS} />
+
+                    {/* Header */}
+                    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-brand-500/20">
+                                    <Icon name="waves" className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <span className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                                        EmoStream <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 font-mono">R2 Hub</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <Icon name="search" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="搜尋影音與創作者..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-200 outline-none focus:border-brand-500 w-48 sm:w-64"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Area */}
+                    <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* 播放視窗 */}
+                        <div className="lg:col-span-8 space-y-6">
+                            <div className="relative aspect-video bg-black rounded-3xl overflow-hidden border border-slate-800 shadow-2xl glass-panel">
+                                <video
+                                    ref={mediaRef}
+                                    src={currentTrack?.src}
+                                    onTimeUpdate={handleTimeUpdate}
+                                    onEnded={() => setIsPlaying(false)}
+                                    playsInline
+                                    controlsList="nodownload"
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between p-2">
+                                <div>
+                                    <h2 className="text-xl font-bold text-white">{currentTrack?.title}</h2>
+                                    <p className="text-sm text-slate-400 mt-0.5">{currentTrack?.creator}</p>
+                                </div>
+                                <button 
+                                    onClick={() => toggleFavorite(currentTrack?.id)}
+                                    className={`p-3 rounded-2xl border ${favorites.includes(currentTrack?.id) ? 'bg-rose-500/20 border-rose-500/30 text-rose-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                                >
+                                    <Icon name="heart" className="w-5 h-5" fill={favorites.includes(currentTrack?.id) ? "currentColor" : "none"} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 列表側邊欄 */}
+                        <div className="lg:col-span-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                                    <Icon name="list-music" className="w-5 h-5 text-brand-400" />
+                                    <span>播放清單 ({filteredTracks.length})</span>
+                                </h3>
+                                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+                                    <button onClick={() => setFilterType('all')} className={`px-2.5 py-1 rounded-lg ${filterType === 'all' ? 'bg-brand-600 text-white font-bold' : 'text-slate-400'}`}>全部</button>
+                                    <button onClick={() => setFilterType('video')} className={`px-2.5 py-1 rounded-lg ${filterType === 'video' ? 'bg-brand-600 text-white font-bold' : 'text-slate-400'}`}>影片</button>
+                                    <button onClick={() => setFilterType('audio')} className={`px-2.5 py-1 rounded-lg ${filterType === 'audio' ? 'bg-brand-600 text-white font-bold' : 'text-slate-400'}`}>音訊</button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                                {filteredTracks.map((item) => (
+                                    <div 
+                                        key={item.id}
+                                        onClick={() => handleSelectTrack(item)}
+                                        className={`p-3 rounded-2xl border flex items-center gap-3 cursor-pointer transition-all ${currentTrack?.id === item.id ? 'bg-brand-950/40 border-brand-500/50 shadow-lg' : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-900'}`}
+                                    >
+                                        <img src={item.thumb} className="w-14 h-14 rounded-xl object-cover" />
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
+                                            <p className="text-xs text-slate-400 truncate mt-0.5">{item.creator}</p>
+                                        </div>
+                                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                                            {item.type}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* Bottom Floating Player Controls */}
+                    <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-3 z-50">
+                        <div className="max-w-7xl mx-auto space-y-2">
+                            {/* Seek Bar */}
+                            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden cursor-pointer" onClick={handleSeek}>
+                                <div className="bg-brand-500 h-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 w-1/3 truncate">
+                                    <img src={currentTrack?.thumb} className="w-10 h-10 rounded-lg object-cover hidden sm:block" />
+                                    <div className="truncate">
+                                        <div className="text-xs font-bold text-white truncate">{currentTrack?.title}</div>
+                                        <div className="text-[10px] text-slate-400 truncate">{currentTrack?.creator}</div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-center gap-4 w-1/3">
+                                    <button onClick={handlePlayPause} className="w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-400 text-slate-950 flex items-center justify-center font-bold shadow-lg transition">
+                                        <Icon name={isPlaying ? "pause" : "play"} className="w-5 h-5 ml-0.5" fill="currentColor" />
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 w-1/3">
+                                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white">
+                                        <Icon name={isMuted ? "volume-x" : "volume-2"} className="w-5 h-5" />
+                                    </button>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="1" 
+                                        step="0.05"
+                                        value={isMuted ? 0 : volume}
+                                        onChange={(e) => {
+                                            setVolume(parseFloat(e.target.value));
+                                            setIsMuted(false);
+                                        }}
+                                        className="w-20 h-1 bg-slate-700 rounded-lg accent-brand-500 cursor-pointer hidden sm:block"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
