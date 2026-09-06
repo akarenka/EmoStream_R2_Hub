@@ -1,0 +1,15 @@
+name = "emostream-r2-upload"
+main = "worker.js"
+compatibility_date = "2026-08-21"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "CHANGE_TO_YOUR_R2_BUCKET_NAME"
+
+[vars]
+# Replace with the exact GitHub Pages origin. Do not include a trailing slash or repository path.
+ALLOWED_ORIGIN = "https://akarenka.github.io"
+MAX_UPLOAD_BYTES = "99614720"
+
+# Set UPLOAD_TOKEN securely with:
+# npx wrangler secret put UPLOAD_TOKEN
